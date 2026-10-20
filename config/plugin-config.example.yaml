@@ -1,0 +1,28 @@
+# Merge this under the existing `plugins:` key of CLIProxyAPI's config.yaml.
+# Every key except `enabled` is optional; the values shown are the defaults.
+plugins:
+  enabled: true
+  dir: "plugins" # /CLIProxyAPI/plugins inside the official Docker image
+  configs:
+    cliproxyapi-ollama:
+      enabled: true
+      priority: 100
+      # Ollama Cloud endpoint used for sign-in, models, inference, and quota.
+      base_url: "https://ollama.com"
+      # Name shown on ollama.com when a new device key is connected. Default: CLIProxyAPI-<hostname>.
+      device_name: ""
+      # How long a pending connect URL stays valid (60-3600 seconds).
+      login_timeout_seconds: 900
+      # Cache lifetime of the discovered model catalog (30-86400 seconds).
+      model_cache_ttl_seconds: 600
+      # Fetch context length and thinking levels per model from /api/show.
+      model_details: true
+      # Minimum interval between quota fetches per credential (0 disables caching).
+      # ollama.com rate-limits /api/usage to 10 requests per minute per user.
+      quota_cache_seconds: 30
+      # Usage window for the quota card metrics: 24h, 7d, or 30d.
+      usage_range: "7d"
+      # Model names or glob patterns to hide, for example "gpt-oss:*" or "glm-*".
+      excluded_models: []
+      # Only for testing against a local mock: allow an http:// base_url.
+      allow_insecure_base_url: false

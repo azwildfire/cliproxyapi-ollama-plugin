@@ -1,0 +1,18 @@
+{
+  "id": "cliproxyapi-ollama",
+  "name": "Ollama Cloud Provider",
+  "description": "Adds Ollama Cloud models to CLIProxyAPI through the ollama.com device-key sign-in (or an API key), dynamic model discovery, native OpenAI, Claude and Responses execution, and a quota card with included usage, credits and recent spend.",
+  "author": "azwildfire",
+  "version": "0.1.0",
+  "repository": "https://github.com/azwildfire/cliproxyapi-ollama-plugin",
+  "homepage": "https://github.com/azwildfire/cliproxyapi-ollama-plugin",
+  "license": "MIT",
+  "tags": [
+    "Provider",
+    "Ollama",
+    "OAuth",
+    "Quota",
+    "Claude",
+    "OpenAI"
+  ]
+}

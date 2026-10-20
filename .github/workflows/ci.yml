@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Vet and test
+        run: |
+          mkdir -p .cache/go-build .cache/go-mod .cache/home
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/src/.cache/home \
+            -e GOCACHE=/src/.cache/go-build \
+            -e GOMODCACHE=/src/.cache/go-mod \
+            -e GOFLAGS=-buildvcs=false \
+            -v "$PWD:/src" \
+            -w /src \
+            golang:1.26-bookworm \
+            sh -ec 'go vet ./... && go test ./...'
+
+      - name: Build plugin
+        run: make build
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cliproxyapi-ollama-linux-amd64
+          path: build/plugins/linux/amd64/cliproxyapi-ollama.so
