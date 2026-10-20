@@ -36,7 +36,7 @@ build-local:
 	rm -f $(PLUGIN_DIR)/$(PLUGIN_ID).h
 
 package: build
-	scripts/package-release.sh "$(VERSION)"
+	sh scripts/package-release.sh "$(VERSION)"
 
 clean:
 	rm -rf build dist $(CACHE_DIR)
