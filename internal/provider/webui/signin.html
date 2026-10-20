@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ollama Cloud</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --muted: #656d76; --border: #d0d7de;
+    --accent: #0969da; --accent-text: #ffffff; --ok: #1a7f37; --warn: #9a6700; --err: #cf222e;
+    --bar: #eaeef2; --bar-fill: #2da44e; --bar-warn: #d4a72c; --bar-err: #cf222e; --chip: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --card: #161b22; --text: #e6edf3; --muted: #8b949e; --border: #30363d;
+      --accent: #388bfd; --accent-text: #ffffff; --ok: #3fb950; --warn: #d29922; --err: #f85149;
+      --bar: #21262d; --bar-fill: #3fb950; --bar-warn: #d29922; --bar-err: #f85149; --chip: #1f242c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 16px 48px; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  h3 { font-size: 14px; margin: 0; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .hidden { display: none !important; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .grow { flex: 1 1 240px; }
+  input, textarea, button { font: inherit; }
+  input[type=text], input[type=password], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text);
+  }
+  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; resize: vertical; }
+  button { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.danger { color: var(--err); }
+  button:disabled { opacity: .55; cursor: default; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tabs button { border-radius: 999px; }
+  .tabs button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .status { min-height: 1.4em; margin-top: 8px; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--err); } .status.wait { color: var(--warn); }
+  .link { word-break: break-all; }
+  .account { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+  .account header { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--chip); font-size: 12px; margin-left: 6px; }
+  .badge.active { color: var(--ok); } .badge.error { color: var(--err); } .badge.disabled { color: var(--muted); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .chip { background: var(--chip); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .chip b { display: block; font-size: 13px; }
+  .bucket { margin: 8px 0; }
+  .bucket .label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .bar { height: 8px; background: var(--bar); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .bar i { display: block; height: 100%; background: var(--bar-fill); }
+  .bar i.warn { background: var(--bar-warn); } .bar i.err { background: var(--bar-err); }
+  code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .toast { position: fixed; right: 16px; bottom: 16px; background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--ok); border-radius: 8px; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-width: 360px; }
+  .toast.err { border-left-color: var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Ollama Cloud</h1>
+    <p class="muted">Connect ollama.com accounts to this proxy and keep an eye on their included usage and credits.</p>
+  </header>
+
+  <section id="keybox" class="card hidden">
+    <h2>Management key</h2>
+    <p>This page could not reuse the management center login (it is only saved when "remember" was ticked). Paste the management key to continue; it is kept in this tab only.</p>
+    <form id="keyform" class="row">
+      <input id="mgmtkey" class="grow" type="password" autocomplete="off" placeholder="Management key" required>
+      <button class="primary" type="submit">Use key</button>
+    </form>
+    <p id="keystatus" class="status err"></p>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content: space-between;">
+      <h2 style="margin:0">Connected accounts</h2>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+    <div id="accounts"><p class="muted">Loading…</p></div>
+  </section>
+
+  <section class="card">
+    <h2>Add an account</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" data-tab="web" class="active">Sign in with ollama.com</button>
+      <button type="button" data-tab="apikey">Use an API key</button>
+      <button type="button" data-tab="import">Import an existing device key</button>
+    </div>
+
+    <div id="tab-web" class="tab">
+      <p>Works like <code>ollama signin</code>: the proxy creates a device key, you approve it once on ollama.com, and requests are signed with it from then on. No key leaves the proxy.</p>
+      <div class="row">
+        <input id="devname" class="grow" type="text" placeholder="Device name shown on ollama.com (optional)">
+        <button id="startweb" class="primary" type="button">Get sign-in link</button>
+      </div>
+      <div id="webflow" class="hidden" style="margin-top:12px">
+        <p>Open the link, sign in to ollama.com, and approve the device. This page keeps checking until the account is connected.</p>
+        <p class="row">
+          <a id="weblink" class="link" href="#" target="_blank" rel="noopener">ollama.com/connect</a>
+        </p>
+        <p class="row">
+          <button id="openlink" class="primary" type="button">Open ollama.com</button>
+          <button id="copylink" type="button">Copy link</button>
+          <button id="cancelweb" type="button">Cancel</button>
+        </p>
+        <p id="webstatus" class="status wait"></p>
+      </div>
+    </div>
+
+    <div id="tab-apikey" class="tab hidden">
+      <p>Create a key at <a href="https://ollama.com/settings/keys" target="_blank" rel="noopener">ollama.com/settings/keys</a> and paste it here. It is validated against your account and stored in the proxy's auth directory like any other credential.</p>
+      <form id="apiform" class="row">
+        <input id="apikey" class="grow" type="password" autocomplete="off" placeholder="Ollama API key" required>
+        <button class="primary" type="submit">Save API key</button>
+      </form>
+      <p id="apistatus" class="status"></p>
+    </div>
+
+    <div id="tab-import" class="tab hidden">
+      <p>Reuse the key of a machine that already ran <code>ollama signin</code>: paste the contents of <code>~/.ollama/id_ed25519</code> (inside the official Ollama container: <code>/root/.ollama/id_ed25519</code>).</p>
+      <form id="importform">
+        <textarea id="pem" rows="7" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" required></textarea>
+        <div class="row" style="margin-top:8px">
+          <input id="importname" class="grow" type="text" placeholder="Device name (optional)">
+          <button class="primary" type="submit">Import key</button>
+        </div>
+      </form>
+      <p id="importstatus" class="status"></p>
+    </div>
+  </section>
+
+  <p class="muted">The same flows are available from the Auth Files page (Ollama Cloud login card) and from the API: <code>/v8/management/oauth/auth-url?provider=ollama-cloud</code>.</p>
+</main>
+
+<script>
+(() => {
+  const PLUGIN_ID = 'cliproxyapi-ollama';
+  const PROVIDER = 'ollama-cloud';
+  const SESSION_KEY = 'cliproxyapi-ollama:management-key';
+  const POLL_MS = 3000;
+  const $ = (id) => document.getElementById(id);
+
+  let mgmtKey = '';
+  let activeFlow = null; // { state, cancelled }
+
+  // --- management key ---------------------------------------------------------------------
+  function xorDecode(raw) {
+    const prefix = 'enc::v1::';
+    if (!raw || !raw.startsWith(prefix)) return raw;
+    const bytes = Uint8Array.from(atob(raw.slice(prefix.length)), (c) => c.charCodeAt(0));
+    const key = new TextEncoder().encode('cli-proxy-api-webui::secure-storage|' + location.host + '|' + navigator.userAgent);
+    const out = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) out[i] = bytes[i] ^ key[i % key.length];
+    return new TextDecoder().decode(out);
+  }
+  function readStoredKey() {
+    try { const s = sessionStorage.getItem(SESSION_KEY); if (s) return s; } catch (_) {}
+    try {
+      const raw = localStorage.getItem('cli-proxy-auth');
+      if (raw) {
+        const parsed = JSON.parse(xorDecode(raw));
+        const state = parsed && (parsed.state || parsed);
+        if (state && typeof state.managementKey === 'string' && state.managementKey.trim()) return state.managementKey.trim();
+      }
+    } catch (_) {}
+    try {
+      const legacy = localStorage.getItem('managementKey');
+      if (legacy) {
+        let text = xorDecode(legacy);
+        try { const p = JSON.parse(text); if (typeof p === 'string') text = p; } catch (_) {}
+        if (text.trim()) return text.trim();
+      }
+    } catch (_) {}
+    return '';
+  }
+  function showKeyBox(message) {
+    $('keybox').classList.remove('hidden');
+    $('keystatus').textContent = message || '';
+  }
+
+  // --- API ---------------------------------------------------------------------------------
+  async function api(method, path, body) {
+    if (!mgmtKey) { showKeyBox(''); throw new Error('management key required'); }
+    const headers = { Authorization: 'Bearer ' + mgmtKey };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) {}
+    if (res.status === 401 || res.status === 403) {
+      showKeyBox('The management key was rejected.');
+      throw new Error('management key rejected');
+    }
+    if (!res.ok) throw new Error((data && (data.error || data.message)) || ('HTTP ' + res.status));
+    return data;
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function toast(message, isError) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (isError ? ' err' : '');
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+  function setStatus(id, text, kind) {
+    const el = $(id);
+    el.textContent = text || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  // --- accounts + quota --------------------------------------------------------------------
+  function credentialList(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== 'object') return [];
+    return payload.files || payload.credentials || payload.items || [];
+  }
+  const money = (v, c) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c || 'USD' }).format(v); } catch (_) { return v.toFixed(2); } };
+  const num = (v) => new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(v);
+  const when = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d.getTime()) ? iso : d.toLocaleString(); };
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+  function renderQuota(container, quota) {
+    const parts = [];
+    const plan = quota.subscription && (quota.subscription.tierName || quota.subscription.plan);
+    const chips = [];
+    if (plan) chips.push('<span class="chip">Plan<b>' + esc(plan) + '</b></span>');
+    for (const m of quota.summary || []) {
+      const value = m.format === 'currency' ? money(m.value, m.currency) : num(m.value) + (m.unit ? ' ' + esc(m.unit) : '');
+      chips.push('<span class="chip">' + esc(m.label) + '<b>' + value + '</b></span>');
+    }
+    if (chips.length) parts.push('<div class="chips">' + chips.join('') + '</div>');
+    for (const g of quota.groups || []) {
+      for (const b of g.buckets || []) {
+        const pct = Math.round(Math.max(0, Math.min(1, Number(b.remainingFraction) || 0)) * 100);
+        const cls = pct <= 10 ? 'err' : pct <= 25 ? 'warn' : '';
+        parts.push('<div class="bucket"><div class="label"><span>' + esc(b.description || b.window || g.displayName) + '</span><span class="muted">' + pct + '% left' + (b.resetTime ? ' · resets ' + esc(when(b.resetTime)) : '') + '</span></div><div class="bar"><i class="' + cls + '" style="width:' + pct + '%"></i></div></div>');
+      }
+    }
+    container.innerHTML = parts.length ? parts.join('') : '<p class="muted">No quota data returned.</p>';
+  }
+
+  async function loadQuota(file, container) {
+    container.innerHTML = '<p class="muted">Loading quota…</p>';
+    try {
+      const quota = await api('POST', '/v0/management/plugins/' + encodeURIComponent(PLUGIN_ID) + '/quota', { auth_index: file.auth_index || file.authIndex });
+      renderQuota(container, quota || {});
+    } catch (err) {
+      container.innerHTML = '<p class="status err">Quota unavailable: ' + esc(err.message) + '</p>';
+    }
+  }
+
+  async function loadAccounts() {
+    const box = $('accounts');
+    try {
+      const payload = await api('GET', '/v8/management/credentials');
+      const files = credentialList(payload).filter((f) => (f.provider || '').toLowerCase() === PROVIDER);
+      if (!files.length) {
+        box.innerHTML = '<p class="muted">No Ollama Cloud accounts yet. Add one below.</p>';
+        return;
+      }
+      box.innerHTML = '';
+      for (const file of files) {
+        const el = document.createElement('div');
+        el.className = 'account';
+        const status = file.disabled ? 'disabled' : (file.status || 'active');
+        const method = (file.name || '').endsWith('-apikey.json') ? 'API key' : 'device key';
+        el.innerHTML =
+          '<header><div><h3>' + esc(file.label || file.email || file.name) + '<span class="badge ' + esc(status) + '">' + esc(status) + '</span><span class="badge">' + method + '</span></h3>' +
+          '<div class="muted">' + esc(file.email || '') + (file.email ? ' · ' : '') + esc(file.name) + '</div></div>' +
+          '<div class="row"><button type="button" data-act="quota">Refresh quota</button><button type="button" class="danger" data-act="remove">Remove</button></div></header>' +
+          '<div class="quota"></div>';
+        const quotaBox = el.querySelector('.quota');
+        el.querySelector('[data-act=quota]').addEventListener('click', () => loadQuota(file, quotaBox));
+        el.querySelector('[data-act=remove]').addEventListener('click', async () => {
+          if (!confirm('Remove ' + file.name + ' from the proxy? The device stays connected on ollama.com until you disconnect it there.')) return;
+          try {
+            await api('DELETE', '/v0/management/auth-files?name=' + encodeURIComponent(file.name));
+            toast('Removed ' + file.name);
+            loadAccounts();
+          } catch (err) { toast('Remove failed: ' + err.message, true); }
+        });
+        box.appendChild(el);
+        loadQuota(file, quotaBox);
+      }
+    } catch (err) {
+      box.innerHTML = '<p class="status err">' + esc(err.message) + '</p>';
+    }
+  }
+
+  // --- login flows -------------------------------------------------------------------------
+  async function startLogin(params) {
+    const query = new URLSearchParams(Object.assign({ provider: PROVIDER }, params));
+    return api('GET', '/v8/management/oauth/auth-url?' + query.toString());
+  }
+  async function waitForLogin(flow, onWait) {
+    for (;;) {
+      await sleep(POLL_MS);
+      if (flow.cancelled) throw new Error('cancelled');
+      const res = await api('GET', '/v8/management/oauth/status?state=' + encodeURIComponent(flow.state));
+      if (res.status === 'ok') return;
+      if (res.status === 'error') throw new Error(res.error || 'login failed');
+      onWait(res);
+    }
+  }
+  async function cancelLogin(flow) {
+    flow.cancelled = true;
+    try { await api('DELETE', '/v8/management/oauth/session?state=' + encodeURIComponent(flow.state)); } catch (_) {}
+  }
+
+  async function runWebFlow() {
+    const name = $('devname').value.trim();
+    $('startweb').disabled = true;
+    try {
+      const started = await startLogin(name ? { device_name: name } : {});
+      const flow = { state: started.state, cancelled: false };
+      activeFlow = flow;
+      $('weblink').href = started.url;
+      $('weblink').textContent = started.url;
+      $('webflow').classList.remove('hidden');
+      setStatus('webstatus', 'Waiting for the device to be approved on ollama.com…', 'wait');
+      await waitForLogin(flow, () => {});
+      setStatus('webstatus', 'Connected. The account is listed above.', 'ok');
+      toast('Ollama Cloud account connected');
+      loadAccounts();
+    } catch (err) {
+      setStatus('webstatus', err.message === 'cancelled' ? 'Cancelled.' : 'Sign-in failed: ' + err.message, err.message === 'cancelled' ? '' : 'err');
+    } finally {
+      activeFlow = null;
+      $('startweb').disabled = false;
+    }
+  }
+
+  async function runSimpleFlow(params, statusId, waitingText, successText) {
+    setStatus(statusId, waitingText, 'wait');
+    try {
+      const started = await startLogin(params);
+      const flow = { state: started.state, cancelled: false };
+      await waitForLogin(flow, () => {});
+      setStatus(statusId, successText, 'ok');
+      toast(successText);
+      loadAccounts();
+      return true;
+    } catch (err) {
+      setStatus(statusId, err.message, 'err');
+      return false;
+    }
+  }
+
+  // --- wiring ------------------------------------------------------------------------------
+  document.querySelectorAll('.tabs button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('hidden', tab.id !== 'tab-' + btn.dataset.tab));
+    });
+  });
+  $('keyform').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    mgmtKey = $('mgmtkey').value.trim();
+    if (!mgmtKey) return;
+    try { sessionStorage.setItem(SESSION_KEY, mgmtKey); } catch (_) {}
+    $('keybox').classList.add('hidden');
+    loadAccounts();
+  });
+  $('refresh').addEventListener('click', loadAccounts);
+  $('startweb').addEventListener('click', runWebFlow);
+  $('openlink').addEventListener('click', () => { const url = $('weblink').href; if (url && url !== '#') window.open(url, '_blank', 'noopener'); });
+  $('copylink').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('weblink').href); toast('Link copied'); } catch (_) { toast('Copy failed; select the link text instead', true); }
+  });
+  $('cancelweb').addEventListener('click', () => { if (activeFlow) cancelLogin(activeFlow); });
+  $('apiform').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const key = $('apikey').value.trim();
+    if (!key) return;
+    const ok = await runSimpleFlow({ api_key: key }, 'apistatus', 'Validating the key with ollama.com…', 'API key saved.');
+    if (ok) $('apikey').value = '';
+  });
+  $('importform').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const pem = $('pem').value.trim();
+    if (!pem) return;
+    const params = { private_key: btoa(unescape(encodeURIComponent(pem + '\n'))) };
+    const name = $('importname').value.trim();
+    if (name) params.device_name = name;
+    const ok = await runSimpleFlow(params, 'importstatus', 'Checking the key with ollama.com…', 'Device key imported.');
+    if (ok) $('pem').value = '';
+  });
+
+  mgmtKey = readStoredKey();
+  if (!mgmtKey) showKeyBox('');
+  else loadAccounts();
+})();
+</script>
+</body>
+</html>

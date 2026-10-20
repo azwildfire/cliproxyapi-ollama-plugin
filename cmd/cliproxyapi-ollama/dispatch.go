@@ -12,7 +12,7 @@ import (
 )
 
 // pluginVersion is replaced at build time with -ldflags "-X main.pluginVersion=<version>".
-var pluginVersion = "0.1.0"
+var pluginVersion = "0.2.0"
 
 var pluginService = provider.New(hostTransport{})
 
@@ -37,6 +37,7 @@ type registrationCapability struct {
 	ExecutorOutputFormats []string                     `json:"executor_output_formats"`
 	QuotaProvider         bool                         `json:"quota_provider"`
 	CommandLinePlugin     bool                         `json:"command_line_plugin"`
+	ManagementAPI         bool                         `json:"management_api"`
 }
 
 type identifierResponse struct {
@@ -172,6 +173,14 @@ func dispatch(method string, request []byte) (any, error) {
 			return nil, errUnmarshal
 		}
 		return pluginService.ResetQuota(ctx, req)
+	case pluginabi.MethodManagementRegister:
+		return pluginService.RegisterManagement(), nil
+	case pluginabi.MethodManagementHandle:
+		var req provider.ManagementRequest
+		if errUnmarshal := json.Unmarshal(request, &req); errUnmarshal != nil {
+			return nil, errUnmarshal
+		}
+		return pluginService.HandleManagement(req), nil
 	case pluginabi.MethodCommandLineRegister:
 		return pluginService.RegisterCommandLine(), nil
 	case pluginabi.MethodCommandLineExecute:
@@ -218,6 +227,7 @@ func pluginRegistration() registration {
 			ExecutorOutputFormats: provider.SupportedFormats(),
 			QuotaProvider:         true,
 			CommandLinePlugin:     true,
+			ManagementAPI:         true,
 		},
 	}
 }

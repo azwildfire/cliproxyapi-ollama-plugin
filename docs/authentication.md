@@ -2,6 +2,20 @@
 
 Ollama Cloud recognises two kinds of credentials, and the plugin supports both.
 
+## The management center page
+
+Open **Ollama Cloud** in the management center's plugin menu. The page shows every connected
+account with its quota and has three tabs: **Sign in with ollama.com** (web/device flow),
+**Use an API key**, and **Import an existing device key**. Each tab drives the same host login
+endpoints described below and keeps polling until the credential is saved, so no terminal is
+needed.
+
+The page is served by the plugin at `/v0/resource/plugins/cliproxyapi-ollama/signin`. It is
+static and holds no secrets; every call it makes carries the management key. When the
+management center was opened with "remember" ticked, the page reuses that saved login (the
+center stores it, lightly obfuscated, in the browser's local storage on the same origin);
+otherwise it asks for the management key once and keeps it in the tab's session storage.
+
 ## Device keys (the `ollama signin` flow)
 
 This is what the `ollama` CLI and desktop app use. A device owns an ed25519 key; its public half

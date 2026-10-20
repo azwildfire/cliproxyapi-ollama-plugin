@@ -43,6 +43,7 @@ and the JSON method dispatcher. It registers:
 - `ModelProvider`: per-credential discovery of the cloud catalog
 - `ProviderExecutor`: passthrough execution for `openai`, `claude` and `openai-response`
 - `QuotaProvider`: normalized quota from `/api/balance`, `/api/usage` and `/api/me`
+- `ManagementAPI`: the **Ollama Cloud** sign-in and quota page in the management center menu
 - `CommandLinePlugin`: `-ollama-login`, `-ollama-api-key`, `-ollama-device-name`
 
 `internal/provider` holds the provider logic (`keys.go` signing, `login.go` flows, `models.go`
@@ -98,8 +99,19 @@ The plugin reads its block under `plugins.configs.cliproxyapi-ollama`. Every key
 
 ## Sign in
 
-From the management center, pick the **Ollama Cloud** login card, open the URL it shows, sign in
-to ollama.com and approve the device. The card polls until the credential is saved.
+The management center gets an **Ollama Cloud** page in its plugin menu (served by the plugin at
+`/v0/resource/plugins/cliproxyapi-ollama/signin`). It lists the connected accounts with their
+quota and offers three ways to add one:
+
+- **Sign in with ollama.com**: the web/device flow. Get a link, approve the device on
+  ollama.com, done.
+- **Use an API key**: paste a key from <https://ollama.com/settings/keys>.
+- **Import an existing device key**: paste the `~/.ollama/id_ed25519` of a machine that already
+  ran `ollama signin`.
+
+The page reuses the management center login when "remember" was ticked at sign-in; otherwise it
+asks for the management key once per tab. The generic **Ollama Cloud** login card on the Auth
+Files page starts the web flow as well.
 
 Equivalent API flow:
 
