@@ -12,7 +12,7 @@ import (
 )
 
 // pluginVersion is replaced at build time with -ldflags "-X main.pluginVersion=<version>".
-var pluginVersion = "0.2.0"
+var pluginVersion = "0.2.1"
 
 var pluginService = provider.New(hostTransport{})
 

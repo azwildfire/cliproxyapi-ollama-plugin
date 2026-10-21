@@ -39,6 +39,9 @@ func TestBuildQuotaCurrentShape(t *testing.T) {
 	if bucket.ResetTime != "2026-10-29T06:58:24Z" {
 		t.Fatalf("reset time %q", bucket.ResetTime)
 	}
+	if bucket.Window != "30d" {
+		t.Fatalf("window must carry the exact period length, got %q", bucket.Window)
+	}
 	metrics := map[string]float64{}
 	for _, metric := range quota.Summary {
 		metrics[metric.Key] = metric.Value
@@ -96,7 +99,7 @@ func TestBuildQuotaLegacyWindows(t *testing.T) {
 	if len(quota.Groups) != 1 || quota.Groups[0].DisplayName != "Rate limits" || len(quota.Groups[0].Buckets) != 2 {
 		t.Fatalf("unexpected groups %+v", quota.Groups)
 	}
-	if got := quota.Groups[0].Buckets[0]; got.Window != "session" || math.Abs(got.RemainingFraction-0.897) > 1e-9 {
+	if got := quota.Groups[0].Buckets[0]; got.Window != "5h" || math.Abs(got.RemainingFraction-0.897) > 1e-9 {
 		t.Fatalf("session bucket %+v", got)
 	}
 	if got := quota.Groups[0].Buckets[1]; got.Window != "weekly" || math.Abs(got.RemainingFraction-0.4) > 1e-9 || got.ResetTime != "2026-10-25T00:00:00Z" {
@@ -108,5 +111,25 @@ func TestBuildQuotaWithoutData(t *testing.T) {
 	quota := buildQuota("", &balanceResponse{}, nil, "7d", 0)
 	if quota.Subscription != nil || len(quota.Groups) != 0 || len(quota.Summary) != 0 {
 		t.Fatalf("expected empty quota, got %+v", quota)
+	}
+}
+
+func TestPeriodWindow(t *testing.T) {
+	cases := map[string]struct {
+		from, until, want string
+	}{
+		"thirty days": {"2026-09-29T06:58:24Z", "2026-10-29T06:58:24Z", "30d"},
+		"thirty one":  {"2026-10-01T00:00:00Z", "2026-11-01T00:00:00Z", "31d"},
+		"hours":       {"2026-10-01T00:00:00Z", "2026-10-01T05:00:00Z", "5h"},
+		"invalid":     {"nope", "2026-11-01T00:00:00Z", "monthly"},
+	}
+	for name, tc := range cases {
+		got := periodWindow(&balancePeriod{From: tc.from, Until: tc.until}, "monthly")
+		if got != tc.want {
+			t.Errorf("%s: periodWindow = %q, want %q", name, got, tc.want)
+		}
+	}
+	if periodWindow(nil, "monthly") != "monthly" {
+		t.Fatalf("nil period must fall back")
 	}
 }

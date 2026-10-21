@@ -182,7 +182,7 @@ func buildQuota(plan string, balance *balanceResponse, usage *usageResponse, usa
 		}
 		if included.BalanceUSD != nil && included.AllowanceUSD != nil && *included.AllowanceUSD > 0 {
 			bucket := pluginapi.QuotaBucket{
-				Window:            "allowance",
+				Window:            periodWindow(included.Period, "monthly"),
 				RemainingFraction: clampFraction(*included.BalanceUSD / *included.AllowanceUSD),
 				Description:       fmt.Sprintf("$%.2f of $%.2f included usage remaining", math.Max(*included.BalanceUSD, 0), *included.AllowanceUSD),
 			}
@@ -221,6 +221,24 @@ func buildQuota(plan string, balance *balanceResponse, usage *usageResponse, usa
 	return out
 }
 
+// periodWindow names a bucket window by its exact length ("30d", "168h") so the management
+// center's timeline can draw it; the window string is the only field the host forwards for that.
+func periodWindow(period *balancePeriod, fallback string) string {
+	if period == nil {
+		return fallback
+	}
+	from, errFrom := time.Parse(time.RFC3339, strings.TrimSpace(period.From))
+	until, errUntil := time.Parse(time.RFC3339, strings.TrimSpace(period.Until))
+	if errFrom != nil || errUntil != nil || !until.After(from) {
+		return fallback
+	}
+	hours := until.Sub(from).Hours()
+	if days := hours / 24; days >= 1 && math.Abs(days-math.Round(days)) < 0.01 {
+		return fmt.Sprintf("%dd", int(math.Round(days)))
+	}
+	return fmt.Sprintf("%dh", int(math.Round(hours)))
+}
+
 func legacyBucket(name string, window *legacyWindow) (pluginapi.QuotaBucket, bool) {
 	if window == nil {
 		return pluginapi.QuotaBucket{}, false
@@ -235,11 +253,25 @@ func legacyBucket(name string, window *legacyWindow) (pluginapi.QuotaBucket, boo
 		return pluginapi.QuotaBucket{}, false
 	}
 	return pluginapi.QuotaBucket{
-		Window:            name,
+		Window:            legacyWindowName(name),
 		RemainingFraction: clampFraction(remaining),
 		ResetTime:         strings.TrimSpace(window.ResetsAt),
 		Description:       titleCase(name) + " window",
 	}, true
+}
+
+// legacyWindowName maps ollama.com's older window keys to lengths the timeline understands.
+func legacyWindowName(name string) string {
+	switch name {
+	case "session":
+		return "5h"
+	case "weekly":
+		return "weekly"
+	case "monthly":
+		return "30d"
+	default:
+		return name
+	}
 }
 
 func currencyMetric(key, label string, value float64) pluginapi.QuotaMetric {
